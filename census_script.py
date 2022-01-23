@@ -82,13 +82,15 @@ fig = px.choropleth(ldf,
                     range_color=(0, max_value),
                     featureidkey="properties.cmwd11cd",
                     scope='europe',
-                    # projection="mercator",
+                    # projection="merc,ator",
                     # customdata=ldf[namecol],
                     # hovertemplate='<br>x:%{x}<br>y:%{y}<br>z:%{z}<br>m:%{customdata}'
-                    hover_data=[namecol, 'LAD11NM']
+                    hover_data=[namecol, 'LAD11NM'],
+                    title='Title'
                     )
 fig.update_geos(fitbounds="geojson", visible=False, framewidth=1000)
-fig.update_layout(margin=dict(l=0, r=0, b=0, t=0),
+fig.update_layout(margin=dict(l=0, r=0, b=0, t=30),
+                  title_x=0.5,
                   width=1500)
 # fig.show()
 plot(fig)

@@ -23,7 +23,8 @@ fig = px.choropleth(lldf, geojson=ward_corrected, locations=locationcol,
                     range_color=(0, max_value),
                     featureidkey="properties.cmwd11cd",
                     scope='europe',
-                    projection="mercator"
+                    projection="mercator",
+                    title="Title"
                     )
 fig.update_geos(
     # fitbounds="locations",
@@ -31,6 +32,6 @@ fig.update_geos(
     lonaxis_range=[180000, 182000],
     visible=False
 )
-fig.update_layout(margin={"r": 0, "t": 0, "l": 0, "b": 0})
+fig.update_layout(margin={"r": 0, "t": 30, "l": 0, "b": 0})
 # fig.show()
 plot(fig)

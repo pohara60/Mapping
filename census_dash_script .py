@@ -1,3 +1,5 @@
+import plotly.graph_objects as go
+from functools import reduce
 from dash.dependencies import Input, Output
 from dash import html
 from dash import dcc
@@ -7,7 +9,7 @@ import pandas as pd
 import plotly.express as px
 import json
 import os
-
+from turfpy.measurement import bbox
 
 # Get Residence Type data
 datafile = "data/BulkdatadetailedcharacteristicsmergedwardspluslaandregE&Wandinfo3.3/DC1104EWDATA.CSV"
@@ -103,9 +105,16 @@ lad_max_value = lladdf[datacol].max()
 
 # Dash
 
-app = dash.Dash(__name__)
 
-df = pd.read_csv('https://plotly.github.io/datasets/country_indicators.csv')
+def blank_fig():
+    fig = go.Figure(go.Scatter(x=[], y=[]))
+    fig.update_layout(template=None)
+    fig.update_xaxes(showgrid=False, showticklabels=False, zeroline=False)
+    fig.update_yaxes(showgrid=False, showticklabels=False, zeroline=False)
+    return fig
+
+
+app = dash.Dash(__name__)
 
 local_authorities = pd.Series(ldf['LAD11CD'].unique())
 all_local_authorities = pd.concat([pd.Series(['All']), local_authorities])
@@ -114,23 +123,39 @@ app.layout = html.Div([
     html.Div([
 
         html.Div([
-            dcc.Dropdown(
-                id='local-authority',
-                options=[{'label': i, 'value': i}
-                         for i in all_local_authorities],
-                value='All'
-            ),
             dcc.RadioItems(
                 id='granularity',
                 options=[{'label': i, 'value': i}
                          for i in ['Ward', 'Local Authority']],
                 value='Ward',
-                labelStyle={'display': 'inline-block'}
+                #labelStyle={'display': 'inline-block'},
+                style=dict(
+                    width='40%',
+                    verticalAlign="middle",
+                    fontSize='large'
+                )
+            ),
+            html.Label('Local Authority', style={
+                       'margin-right': '2em', 'font-size': 'large'}),
+            dcc.Dropdown(
+                id='local-authority',
+                options=[
+                    #{'label': i, 'value': i}
+                    {'label': 'All' if i == 'All'
+                     else geography[geography[locationcol] == i][namecol].iat[0],
+                     'value': i}
+                    for i in all_local_authorities],
+                style=dict(
+                    width='40%',
+                    verticalAlign="middle"
+                ),
+                value='All'
             )
-        ], style={'width': '48%', 'display': 'inline-block'}),
+
+        ], style={'width': '48%', 'display': 'flex'}),
     ]),
 
-    dcc.Graph(id='map'),
+    dcc.Graph(id='map', figure=blank_fig()),
 
     # dcc.Slider(
     #     id='year--slider',
@@ -157,36 +182,57 @@ def update_graph(local_authority, granularity):
         gj = london_lads
         key = "properties.lad11cd"
         max_value = lad_max_value
+        title = datacol + " by Local Authority"
     else:
-        gj = london_wards
         key = "properties.cmwd11cd"
         max_value = ward_max_value
         if local_authority == 'All':
             fdf = ldf
             gj = london_wards
+            title = datacol + " by Ward"
         else:
             fdf = ldf[ldf['LAD11CD'].str.match(local_authority)]
+            gj = {
+                'features': list(filter(lambda f: f['properties']['lad11cd'] == local_authority,
+                                        london_wards["features"])),
+                'type': london_wards['type'],
+                'crs': london_wards['crs']
+            }
+            title = datacol + " by Ward for Local Authority"
+
+    def compute_bbox(gj):
+        gj_bbox_list = list(
+            map(lambda f: bbox(f['geometry']), gj['features']))
+        gj_bbox = reduce(
+            lambda b1, b2: [min(b1[0], b2[0]), min(b1[1], b2[1]),
+                            max(b1[2], b2[2]), max(b1[3], b2[3])],
+            gj_bbox_list)
+        return gj_bbox
+
+    gj_bbox = compute_bbox(gj)
 
     fig = px.choropleth(fdf,
-                        geojson=gj,  # Was london_wards_corrected
+                        geojson=gj,
                         locations=locationcol,
                         color=datacol,
                         color_continuous_scale="Viridis",
                         range_color=(0, max_value),
                         featureidkey=key,
                         scope='europe',
-                        # projection="mercator",
-                        # customdata=ldf[namecol],
-                        # hovertemplate='<br>x:%{x}<br>y:%{y}<br>z:%{z}<br>m:%{customdata}'
-                        hover_data=[namecol, 'LAD11NM']
+                        hover_data=[namecol, 'LAD11NM'],
+                        title=title
                         )
-    fig.update_geos(fitbounds="geojson",
-                    visible=False,
-                    # framewidth=1000
-                    )
-    fig.update_layout(margin=dict(l=0, r=0, b=0, t=0),
+    fig.update_geos(
+        # fitbounds="locations",
+        center_lon=(gj_bbox[0]+gj_bbox[2])/2.0,
+        center_lat=(gj_bbox[1]+gj_bbox[3])/2.0,
+        lonaxis_range=[gj_bbox[0], gj_bbox[2]],
+        lataxis_range=[gj_bbox[1], gj_bbox[3]],
+        visible=False,
+    )
+    fig.update_layout(margin=dict(l=0, r=0, b=0, t=30),
+                      title_x=0.5,
                       width=1500, height=800)
-
     return fig
 
 
