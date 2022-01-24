@@ -10,30 +10,22 @@ import plotly.express as px
 import json
 import os
 from turfpy.measurement import bbox
+import read_census_data as rcd
 
 # Get Residence Type data
-datafile = "data/BulkdatadetailedcharacteristicsmergedwardspluslaandregE&Wandinfo3.3/DC1104EWDATA.CSV"
 # DC1104EW0001	All categories: Age, All categories: Residence type, All categories: Sex
-datacol = "DC1104EW0001"
-locationcol = "GeographyCode"
-columns = [locationcol, datacol]
-df = pd.read_csv(datafile, usecols=columns)
+index = rcd.read_index()
+print(index.head())
+table_name = index['Table Number'][0]
+tdf = rcd.read_table(table_name)
+data_name = tdf['Dataset'][0]
+df = rcd.read_data(table_name, data_name)
+datacol = df.columns[1]
 
 # Get Census Merged Ward and Local Authority Data
-lookupfile = "data/Ward_to_Census_Merged_Ward_to_Local_Authority_District_(December_2011)_Lookup_in_England_and_Wales.csv"
-cmwd = pd.read_csv(lookupfile, usecols=[
-                   'CMWD11CD', 'CMWD11NM', 'LAD11CD', 'LAD11NM'])
-cmwd.drop_duplicates(inplace=True)
-cmwd[locationcol] = cmwd['CMWD11CD']
-namecol = 'Name'
-cmwd[namecol] = cmwd['CMWD11NM']
-lad = pd.read_csv(lookupfile, usecols=['LAD11CD', 'LAD11NM'])
-lad = lad.drop_duplicates()
-lad[locationcol] = lad['LAD11CD']
-lad[namecol] = lad['LAD11NM']
-lad['CMWD11CD'] = ''
-lad['CMWD11NM'] = ''
-geography = pd.concat([cmwd, lad])
+geography = rcd.read_geography()
+locationcol = "GeographyCode"
+namecol = "Name"
 
 # Add names to data
 df = pd.merge(df, geography, on=locationcol)

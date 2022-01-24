@@ -1,4 +1,3 @@
-import read_census_data as rcd
 import pandas as pd
 
 CENSUS_DATA = 'data/BulkdatadetailedcharacteristicsmergedwardspluslaandregE&Wandinfo3.3'
@@ -149,19 +148,3 @@ if __name__ == '__main__':
     data_name = tdf['Dataset'][0]
     df = read_data(table_name, data_name)
     print(df.head())
-
-
-# Get Residence Type data
-# DC1104EW0001	All categories: Age, All categories: Residence type, All categories: Sex
-index = rcd.read_index()
-print(index.head())
-table_name = index['Table Number'][0]
-tdf = rcd.read_table(table_name)
-data_name = tdf['Dataset'][0]
-df = rcd.read_data(table_name, data_name)
-datacol = df.columns[1]
-
-# Get Census Merged Ward and Local Authority Data
-geography = rcd.read_geography()
-locationcol = "GeographyCode"
-namecol = "Name"
