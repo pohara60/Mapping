@@ -1,29 +1,27 @@
+import census_read_data as crd
+import census_read_geojson as crg
+import pandas as pd
+import plotly.express as px
 import plotly.graph_objects as go
-from functools import reduce
 from dash.dependencies import Input, Output
 from dash import html
 from dash import dcc
 import dash
-import geopandas as gpd
-import pandas as pd
-import plotly.express as px
-import json
-import os
 from turfpy.measurement import bbox
-import read_census_data as rcd
+from functools import reduce
 
 # Get Residence Type data
 # DC1104EW0001	All categories: Age, All categories: Residence type, All categories: Sex
-index = rcd.read_index()
+index = crd.read_index()
 print(index.head())
 table_name = index['Table Number'][0]
-tdf = rcd.read_table(table_name)
+tdf = crd.read_table(table_name)
 data_name = tdf['Dataset'][0]
-df = rcd.read_data(table_name, data_name)
+df = crd.read_data(table_name)
 datacol = df.columns[1]
 
 # Get Census Merged Ward and Local Authority Data
-geography = rcd.read_geography()
+geography = crd.read_geography()
 locationcol = "GeographyCode"
 namecol = "Name"
 
@@ -31,56 +29,12 @@ namecol = "Name"
 df = pd.merge(df, geography, on=locationcol)
 
 # Get London GeoJSON
-london_jsonfile = "data/json_files/London_Ward_Boundaries.json"
-if not os.path.exists(london_jsonfile):
-
-    # Census Ward Boundaries as GeoJSON
-    census_jsonfile = "data/json_files/Census_Merged_Wards_(December_2011)_Boundaries.json"
-    if not os.path.exists(census_jsonfile):
-
-        # Get Census Boundaries as GeoPandas
-        shapefile = 'data/Census_Merged_Wards_(December_2011)_Boundaries/Census_Merged_Wards_(December_2011)_Boundaries.shp'
-        gdf = gpd.read_file(shapefile)
-        # Convert coordinates
-        gdf.to_crs(epsg=4326, inplace=True)
-        # Write GeoJSON
-        gdf.to_file(
-            "data/json_files/Census_Merged_Wards_(December_2011)_Boundaries.json", driver='GeoJSON')
-
-    with open(census_jsonfile) as f:
-        census_wards = json.load(f)
-
-    lgdf = gdf[gdf['lad11cd'].str.match('E090000')]
-    lgdf.to_file(london_jsonfile, driver='GeoJSON')
-
-with open(london_jsonfile) as f:
-    london_wards = json.load(f)
+london_wards = crg.read_london_ward_geojson()
 
 # Get LAD GeoJSON
-london_jsonfile = "data/json_files/London_LAD_Boundaries.json"
-if not os.path.exists(london_jsonfile):
+london_lads = crg.read_london_lad_geojson()
 
-    lad_jsonfile = "data/json_files/Local_Authority_Districts_(December_2011)_Boundaries_EW_BFC.json"
-    if not os.path.exists(lad_jsonfile):
-
-        # Get Census LAD Boundaries as GeoPandas
-        shapefile = 'data/Local_Authority_Districts_(December_2011)_Boundaries_EW_BFC/Local_Authority_Districts_(December_2011)_Boundaries_EW_BFC.shp'
-        ladgdf = gpd.read_file(shapefile)
-        # Convert coordinates
-        ladgdf.to_crs(epsg=4326, inplace=True)
-        # Write GeoJSON
-        ladgdf.to_file(lad_jsonfile, driver='GeoJSON')
-
-    with open(lad_jsonfile) as f:
-        census_lads = json.load(f)
-
-    lladgdf = ladgdf[ladgdf['lad11cd'].str.match('E090000')]
-    lladgdf.to_file(london_jsonfile, driver='GeoJSON')
-
-with open(london_jsonfile) as f:
-    london_lads = json.load(f)
-
-# Get London Data
+# Filter London Data
 london_ward_ids = list(map(lambda f: f['properties']
                            ['cmwd11cd'], london_wards["features"]))
 #london_ward_ids = ['E36007051', 'E36007052']
@@ -96,6 +50,8 @@ lladdf = df[london_flags]
 lad_max_value = lladdf[datacol].max()
 
 # Dash
+
+# Blank figure for initial Dash display
 
 
 def blank_fig():

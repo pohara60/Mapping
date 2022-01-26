@@ -1,3 +1,4 @@
+import census_debug as cd
 import pandas as pd
 
 CENSUS_DATA = 'data/BulkdatadetailedcharacteristicsmergedwardspluslaandregE&Wandinfo3.3'
@@ -7,12 +8,16 @@ f = None
 def read_index():
     global f
     excel_file = CENSUS_DATA+'/Cell Numbered DC Tables 3.3.xlsx'
+    cd.start_timer()
     f = pd.ExcelFile(excel_file)
+    cd.print_timer('Read data Excel')       # 0.6s
     index = f.parse(sheet_name='Index')
+    cd.print_timer('Read data Index')       # 0.02s
     return index
 
 
 def read_table(table_name):
+    cd.start_timer()
     if f == None:
         exit("Call read_index() to open table list")
     table = f.parse(sheet_name=table_name, header=None)
@@ -107,21 +112,34 @@ def read_table(table_name):
         index=index
     )
     df = df.transpose()
+    cd.print_timer(f'Load table {table_name}')  # 0.06s
     return df
 
 
-def read_data(table_name, data_name):
+def read_data(table_name):
     datafile = CENSUS_DATA + '/' + table_name + 'DATA.CSV'
     # DC1104EW0001	All categories: Age, All categories: Residence type, All categories: Sex
-    datacol = table_name+data_name
+    cd.start_timer()
+    df = pd.read_csv(datafile)
+    cd.print_timer(f'Load table {table_name}')  # 0.03s
+    return df
+
+
+def read_data_item(table_name, item_name):
+    datafile = CENSUS_DATA + '/' + table_name + 'DATA.CSV'
+    # DC1104EW0001	All categories: Age, All categories: Residence type, All categories: Sex
+    datacol = table_name+item_name
     locationcol = "GeographyCode"
     columns = [locationcol, datacol]
+    cd.start_timer()
     df = pd.read_csv(datafile, usecols=columns)
+    cd.print_timer(f'Load table {table_name} data {item_name}')     # 0.01s
     return df
 
 
 def read_geography():
     # Get Census Merged Ward and Local Authority Data
+    cd.start_timer()
     lookupfile = 'data/Ward_to_Census_Merged_Ward_to_Local_Authority_District_(December_2011)_Lookup_in_England_and_Wales.csv'
     cmwd = pd.read_csv(lookupfile, usecols=[
         'CMWD11CD', 'CMWD11NM', 'LAD11CD', 'LAD11NM'])
@@ -137,6 +155,7 @@ def read_geography():
     lad['CMWD11CD'] = ''
     lad['CMWD11NM'] = ''
     geography = pd.concat([cmwd, lad])
+    cd.print_timer('Load geography')
     return geography
 
 
@@ -146,5 +165,7 @@ if __name__ == '__main__':
     table_name = index['Table Number'][6]
     tdf = read_table(table_name)
     data_name = tdf['Dataset'][0]
-    df = read_data(table_name, data_name)
+    df = read_data_item(table_name, data_name)
+    print(df.head())
+    df = read_data(table_name)
     print(df.head())
