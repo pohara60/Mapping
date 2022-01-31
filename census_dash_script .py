@@ -1,3 +1,4 @@
+from dash.exceptions import PreventUpdate
 import census_read_data as crd
 import census_read_geojson as crg
 import pandas as pd
@@ -10,44 +11,25 @@ import dash
 from turfpy.measurement import bbox
 from functools import reduce
 
-# Get Residence Type data
-# DC1104EW0001	All categories: Age, All categories: Residence type, All categories: Sex
-index = crd.read_index()
-print(index.head())
-table_name = index['Table Number'][0]
-tdf = crd.read_table(table_name)
-data_name = tdf['Dataset'][0]
-df = crd.read_data(table_name)
-datacol = df.columns[1]
-
 # Get Census Merged Ward and Local Authority Data
 geography = crd.read_geography()
 locationcol = "GeographyCode"
 namecol = "Name"
 
-# Add names to data
-df = pd.merge(df, geography, on=locationcol)
-
 # Get London GeoJSON
 london_wards = crg.read_london_ward_geojson()
+london_ward_ids = list(map(lambda f: f['properties']
+                           ['cmwd11cd'], london_wards["features"]))
 
 # Get LAD GeoJSON
 london_lads = crg.read_london_lad_geojson()
-
-# Filter London Data
-london_ward_ids = list(map(lambda f: f['properties']
-                           ['cmwd11cd'], london_wards["features"]))
-#london_ward_ids = ['E36007051', 'E36007052']
-london_flags = df[locationcol].isin(london_ward_ids)
-ldf = df[london_flags]
-ward_max_value = ldf[datacol].max()
-
 london_lad_ids = list(map(lambda f: f['properties']
                           ['lad11cd'], london_lads["features"]))
-#london_lad_ids = ['E36007051', 'E36007052']
-london_flags = df[locationcol].isin(london_lad_ids)
-lladdf = df[london_flags]
-lad_max_value = lladdf[datacol].max()
+
+
+index = crd.read_index()
+table_names = crd.get_table_names(index)
+
 
 # Dash
 
@@ -64,18 +46,132 @@ def blank_fig():
 
 app = dash.Dash(__name__)
 
-local_authorities = pd.Series(ldf['LAD11CD'].unique())
-all_local_authorities = pd.concat([pd.Series(['All']), local_authorities])
+local_authorities = london_lad_ids
+all_local_authorities = ['All'] + local_authorities
 
 app.layout = html.Div([
     html.Div([
+
+        html.Div([
+            html.Label(
+                'Table Name',
+                style={
+                    'width': '20%',
+                    'margin-right': '2em',
+                    'font-size': 'large'
+                }
+            ),
+            dcc.Dropdown(
+                id='table-name',
+                options=[
+                    #{'label': i, 'value': i}
+                    {'label': table[1],
+                     'value': table[0]}
+                    for table in table_names],
+                style=dict(
+                    width='80%',
+                    verticalAlign="middle"
+                ),
+            )
+
+        ],
+            style={'width': '48%', 'display': 'flex'}
+        ),
+
+        html.Div([
+            html.Label(
+                'Category1',
+                id='category-1-label',
+                style={
+                    'width': '20%',
+                    'margin-right': '2em',
+                    'font-size': 'large'
+                }
+            ),
+            dcc.Dropdown(
+                id='category-1-values',
+                style=dict(
+                    width='80%',
+                    verticalAlign="middle"
+                ),
+            )
+        ],
+            style={'width': '48%', 'display': 'none'},
+            id='category-1-container'
+        ),
+
+        html.Div([
+            html.Label(
+                'Category2',
+                id='category-2-label',
+                style={
+                    'width': '20%',
+                    'margin-right': '2em',
+                    'font-size': 'large'
+                }
+            ),
+            dcc.Dropdown(
+                id='category-2-values',
+                style=dict(
+                    width='80%',
+                    verticalAlign="middle"
+                ),
+            )
+        ],
+            style={'width': '48%', 'display': 'none'},
+            id='category-2-container'
+        ),
+
+        html.Div([
+            html.Label(
+                'Category3',
+                id='category-3-label',
+                style={
+                    'width': '20%',
+                    'margin-right': '2em',
+                    'font-size': 'large'
+                }
+            ),
+            dcc.Dropdown(
+                id='category-3-values',
+                style=dict(
+                    width='80%',
+                    verticalAlign="middle"
+                ),
+            )
+        ],
+            style={'width': '48%', 'display': 'none'},
+            id='category-3-container'
+        ),
+
+        html.Div([
+            html.Label(
+                'Category4',
+                id='category-4-label',
+                style={
+                    'width': '20%',
+                    'margin-right': '2em',
+                    'font-size': 'large'
+                }
+            ),
+            dcc.Dropdown(
+                id='category-4-values',
+                style=dict(
+                    width='80%',
+                    verticalAlign="middle"
+                ),
+            )
+        ],
+            style={'width': '48%', 'display': 'none'},
+            id='category-4-container'
+        ),
 
         html.Div([
             dcc.RadioItems(
                 id='granularity',
                 options=[{'label': i, 'value': i}
                          for i in ['Ward', 'Local Authority']],
-                value='Ward',
+                value='Local Authority',
                 #labelStyle={'display': 'inline-block'},
                 style=dict(
                     width='40%',
@@ -118,13 +214,123 @@ app.layout = html.Div([
 
 @app.callback(
     Output('map', 'figure'),
+    Output('category-1-label', 'children'),
+    Output('category-1-values', 'options'),
+    Output('category-1-container', 'style'),
+    Output('category-2-label', 'children'),
+    Output('category-2-values', 'options'),
+    Output('category-2-container', 'style'),
+    Output('category-3-label', 'children'),
+    Output('category-3-values', 'options'),
+    Output('category-3-container', 'style'),
+    Output('category-4-label', 'children'),
+    Output('category-4-values', 'options'),
+    Output('category-4-container', 'style'),
+    Input('table-name', 'value'),
+    Input('category-1-values', 'value'),
+    Input('category-2-values', 'value'),
+    Input('category-3-values', 'value'),
+    Input('category-4-values', 'value'),
     Input('local-authority', 'value'),
     Input('granularity', 'value'),
     # Input('year--slider', 'value')
 )
-def update_graph(local_authority, granularity):
-    print("local_authority="+local_authority)
-    print("granularity="+granularity)
+def update_graph(table_name,
+                 category1, category2, category3, category4,
+                 local_authority, granularity):
+    print(f"table_name={table_name}")
+    print(f"category1={category1}")
+    print(f"category2={category2}")
+    print(f"category3={category3}")
+    print(f"category4={category4}")
+    print(f"local_authority={local_authority}")
+    print(f"granularity={granularity}")
+
+    if table_name is None:
+        raise PreventUpdate
+
+    tdf = None          # Census Table with Dataset names for Categories
+    categories = None   # List of (Category, Category Values)
+    df = None           # Census Data for each Dataset in a Table
+    ldf = None          # London Ward Census Data for each Dataset in a Table
+    lladdf = None       # London Authority Census Data for each Dataset in a Table
+
+    tdf = crd.read_table(table_name)
+    categories = crd.get_table_column_names_and_values(tdf)
+
+    # Update categories
+    all_categories = True
+    category1label = ''
+    category1values = []
+    category1style = {'display': 'none'}
+    if len(categories) >= 1:
+        category1label = categories[0][0]
+        category1values = [{'label': cat, 'value': cat}
+                           for cat in categories[0][1]]
+        category1style = {'display': 'flex'}
+        if category1 is None:
+            all_categories = False
+        else:
+            query_string = f'`{category1label}` == "{category1}"'
+    category2label = ''
+    category2values = []
+    category2style = {'display': 'none'}
+    if len(categories) >= 2:
+        category2label = categories[1][0]
+        category2values = [{'label': cat, 'value': cat}
+                           for cat in categories[1][1]]
+        category2style = {'display': 'flex'}
+        if category2 is None:
+            all_categories = False
+        else:
+            query_string += f' & `{category2label}` == "{category2}"'
+    category3label = ''
+    category3values = []
+    category3style = {'display': 'none'}
+    if len(categories) >= 3:
+        category3label = categories[2][0]
+        category3values = [{'label': cat, 'value': cat}
+                           for cat in categories[2][1]]
+        category3style = {'display': 'flex'}
+        if category3 is None:
+            all_categories = False
+        else:
+            query_string += f' & `{category3label}` == "{category3}"'
+    category4label = ''
+    category4values = []
+    category4style = {'display': 'none'}
+    if len(categories) >= 4:
+        category4label = categories[3][0]
+        category4values = [{'label': cat, 'value': cat}
+                           for cat in categories[3][1]]
+        category4style = {'display': 'flex'}
+        if category4 is None:
+            all_categories = False
+        else:
+            query_string += f' & `{category4label}` == "{category4}"'
+
+    # If all categories are specified then get data
+    print(f"all_categories={all_categories}")
+    if not all_categories:
+        fig = blank_fig()
+        return fig, category1label, category1values, category1style, category2label, category2values, category2style, category3label, category3values, category3style, category4label, category4values, category4style
+
+    df = crd.read_data(table_name)
+    # Add names to data
+    df = pd.merge(df, geography, on=locationcol)
+
+    # Filter London Data
+    london_flags = df[locationcol].isin(london_ward_ids)
+    ldf = df[london_flags]
+
+    london_flags = df[locationcol].isin(london_lad_ids)
+    lladdf = df[london_flags]
+
+    trow = tdf.query(query_string)
+    datacol = table_name + trow.iloc[0, -1]
+    ward_max_value = ldf[datacol].max()
+    lad_max_value = lladdf[datacol].max()
+
     if granularity == 'Local Authority':
         fdf = lladdf
         gj = london_lads
@@ -181,7 +387,8 @@ def update_graph(local_authority, granularity):
     fig.update_layout(margin=dict(l=0, r=0, b=0, t=30),
                       title_x=0.5,
                       width=1500, height=800)
-    return fig
+    # fig = blank_fig()
+    return fig, category1label, category1values, category1style, category2label, category2values, category2style, category3label, category3values, category3style, category4label, category4values, category4style
 
 
 if __name__ == '__main__':

@@ -121,7 +121,7 @@ def read_data(table_name):
     # DC1104EW0001	All categories: Age, All categories: Residence type, All categories: Sex
     cd.start_timer()
     df = pd.read_csv(datafile)
-    cd.print_timer(f'Load table {table_name}')  # 0.03s
+    cd.print_timer(f'Load data {table_name}')  # 0.03s
     return df
 
 
@@ -159,13 +159,36 @@ def read_geography():
     return geography
 
 
+def get_table_names(index):
+    names = [(index.loc[i, 'Table Number'], index.loc[i, 'Table Title'])
+             for i in range(index.shape[0])]
+    return names
+
+
+def get_table_columns(tdf):
+    return list(tdf.columns[:-1].values)
+
+
+def get_table_column_values(tdf):
+    return [tdf[col].unique().tolist() for col in get_table_columns(tdf)]
+
+
+def get_table_column_names_and_values(tdf):
+    return [(col, tdf[col].unique().tolist()) for col in get_table_columns(tdf)]
+
+
 if __name__ == '__main__':
     index = read_index()
     print(index.head())
+    print(get_table_names(index))
     table_name = index['Table Number'][6]
     tdf = read_table(table_name)
+    print(get_table_columns(tdf))
+    print(get_table_column_values(tdf))
+    print(get_table_column_names_and_values(tdf))
+    print(tdf.head())
     data_name = tdf['Dataset'][0]
-    df = read_data_item(table_name, data_name)
-    print(df.head())
+    # df = read_data_item(table_name, data_name)
+    # print(df.head())
     df = read_data(table_name)
     print(df.head())
