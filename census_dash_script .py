@@ -8,6 +8,7 @@ from dash.dependencies import Input, Output
 from dash import html
 from dash import dcc
 import dash
+import dash_bootstrap_components as dbc
 from turfpy.measurement import bbox
 from functools import reduce
 
@@ -44,172 +45,130 @@ def blank_fig():
     return fig
 
 
-app = dash.Dash(__name__)
+app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
 
 local_authorities = london_lad_ids
 all_local_authorities = ['All'] + local_authorities
 
-app.layout = html.Div([
-    html.Div([
+table_controls = dbc.Card(
+    [
+        dbc.Row([
+            dbc.Label('Table Name',
+                      html_for="table-name", width=2),
+            dbc.Col([
+                    dbc.Select(
+                        id='table-name',
+                        options=[
+                            {'label': table[1], 'value': table[0]}
+                            for table in table_names]
+                    )
+                    ], width=8
+                    )
+        ])
+    ])
 
-        html.Div([
-            html.Label(
-                'Table Name',
-                style={
-                    'width': '20%',
-                    'margin-right': '2em',
-                    'font-size': 'large'
-                }
-            ),
-            dcc.Dropdown(
-                id='table-name',
-                options=[
-                    #{'label': i, 'value': i}
-                    {'label': table[1],
-                     'value': table[0]}
-                    for table in table_names],
-                style=dict(
-                    width='80%',
-                    verticalAlign="middle"
-                ),
-            )
-
-        ],
-            style={'width': '48%', 'display': 'flex'}
-        ),
-
-        html.Div([
-            html.Label(
-                'Category1',
-                id='category-1-label',
-                style={
-                    'width': '20%',
-                    'margin-right': '2em',
-                    'font-size': 'large'
-                }
-            ),
-            dcc.Dropdown(
-                id='category-1-values',
-                style=dict(
-                    width='80%',
-                    verticalAlign="middle"
-                ),
-            )
-        ],
-            style={'width': '48%', 'display': 'none'},
+category_controls = dbc.Card(
+    [
+        dbc.Row(
+            [
+                dbc.Label('Category1',
+                          id='category-1-label',
+                          html_for="category-1-values", width=2),
+                dbc.Col([dbc.Select(id='category-1-values')], width=8)
+            ],
+            style={'display': 'none'},
             id='category-1-container'
         ),
-
-        html.Div([
-            html.Label(
-                'Category2',
-                id='category-2-label',
-                style={
-                    'width': '20%',
-                    'margin-right': '2em',
-                    'font-size': 'large'
-                }
-            ),
-            dcc.Dropdown(
-                id='category-2-values',
-                style=dict(
-                    width='80%',
-                    verticalAlign="middle"
-                ),
-            )
-        ],
-            style={'width': '48%', 'display': 'none'},
+        dbc.Row(
+            [
+                dbc.Label('Category2',
+                          id='category-2-label',
+                          html_for="category-2-values", width=2),
+                dbc.Col([dbc.Select(id='category-2-values')], width=8)
+            ],
+            style={'display': 'none'},
             id='category-2-container'
         ),
-
-        html.Div([
-            html.Label(
-                'Category3',
-                id='category-3-label',
-                style={
-                    'width': '20%',
-                    'margin-right': '2em',
-                    'font-size': 'large'
-                }
-            ),
-            dcc.Dropdown(
-                id='category-3-values',
-                style=dict(
-                    width='80%',
-                    verticalAlign="middle"
-                ),
-            )
-        ],
-            style={'width': '48%', 'display': 'none'},
+        dbc.Row(
+            [
+                dbc.Label('Category3',
+                          id='category-3-label',
+                          html_for="category-3-values", width=2),
+                dbc.Col([dbc.Select(id='category-3-values')], width=8)
+            ],
+            style={'display': 'none'},
             id='category-3-container'
         ),
-
-        html.Div([
-            html.Label(
-                'Category4',
-                id='category-4-label',
-                style={
-                    'width': '20%',
-                    'margin-right': '2em',
-                    'font-size': 'large'
-                }
-            ),
-            dcc.Dropdown(
-                id='category-4-values',
-                style=dict(
-                    width='80%',
-                    verticalAlign="middle"
-                ),
-            )
-        ],
-            style={'width': '48%', 'display': 'none'},
+        dbc.Row(
+            [
+                dbc.Label('Category4',
+                          id='category-4-label',
+                          html_for="category-4-values", width=2),
+                dbc.Col([dbc.Select(id='category-4-values')], width=8)
+            ],
+            style={'display': 'none'},
             id='category-4-container'
         ),
+    ]
+)
 
-        html.Div([
-            dcc.RadioItems(
-                id='granularity',
-                options=[{'label': i, 'value': i}
-                         for i in ['Ward', 'Local Authority']],
-                value='Local Authority',
-                #labelStyle={'display': 'inline-block'},
-                style=dict(
-                    width='40%',
-                    verticalAlign="middle",
-                    fontSize='large'
-                )
-            ),
-            html.Label('Local Authority', style={
-                       'margin-right': '2em', 'font-size': 'large'}),
-            dcc.Dropdown(
-                id='local-authority',
-                options=[
-                    #{'label': i, 'value': i}
-                    {'label': 'All' if i == 'All'
-                     else geography[geography[locationcol] == i][namecol].iat[0],
-                     'value': i}
-                    for i in all_local_authorities],
-                style=dict(
-                    width='40%',
-                    verticalAlign="middle"
-                ),
-                value='All'
+map_controls = dbc.Card(
+    [
+        dbc.Row([
+            dbc.Label("Granularity", html_for="granularity", width=2),
+            dbc.Col(
+                [
+                    dbc.RadioItems(
+                        id='granularity',
+                        options=[{'label': i, 'value': i}
+                                 for i in ['Local Authorities', 'Wards']],
+                        value='Local Authorities',
+                        inline=True
+                    ),
+                ],
+                width=8
+            )
+        ]),
+
+        dbc.Row([
+            dbc.Label('Wards for Local Authority',
+                      html_for="local-authority", width=2),
+            dbc.Col(
+                [
+                    dbc.Select(
+                        id='local-authority',
+                        options=[
+                            #{'label': i, 'value': i}
+                            {'label': 'All' if i == 'All'
+                                else geography[geography[locationcol] == i][namecol].iat[0],
+                                'value': i}
+                            for i in all_local_authorities],
+                        value='All'
+                    )
+                ],
+                width=8
             )
 
-        ], style={'width': '48%', 'display': 'flex'}),
-    ]),
+        ]),
+    ]
+)
 
-    dcc.Graph(id='map', figure=blank_fig()),
-
-    # dcc.Slider(
-    #     id='year--slider',
-    #     min=df['Year'].min(),
-    #     max=df['Year'].max(),
-    #     value=df['Year'].max(),
-    #     marks={str(year): str(year) for year in df['Year'].unique()},
-    #     step=None
-    # )
-])
+app.layout = dbc.Container(
+    [
+        html.H1("Census Data"),
+        html.Hr(),
+        dbc.Col(
+            [
+                dbc.Row(table_controls),
+                dbc.Row(category_controls),
+                dbc.Row(map_controls),
+                dbc.Row(dcc.Graph(id='map', figure=blank_fig())),
+            ],
+            align="center",
+        ),
+    ],
+    fluid=True,
+)
 
 
 @app.callback(
@@ -226,6 +185,7 @@ app.layout = html.Div([
     Output('category-4-label', 'children'),
     Output('category-4-values', 'options'),
     Output('category-4-container', 'style'),
+    # Output('table-name', 'style'),
     Input('table-name', 'value'),
     Input('category-1-values', 'value'),
     Input('category-2-values', 'value'),
@@ -309,11 +269,14 @@ def update_graph(table_name,
         else:
             query_string += f' & `{category4label}` == "{category4}"'
 
+    # Force redisplay of table name dropdown
+    tablenamestyle = {'display': 'flex'}
+
     # If all categories are specified then get data
     print(f"all_categories={all_categories}")
     if not all_categories:
         fig = blank_fig()
-        return fig, category1label, category1values, category1style, category2label, category2values, category2style, category3label, category3values, category3style, category4label, category4values, category4style
+        return fig, category1label, category1values, category1style, category2label, category2values, category2style, category3label, category3values, category3style, category4label, category4values, category4style  # , tablenamestyle
 
     df = crd.read_data(table_name)
     # Add names to data
@@ -331,7 +294,7 @@ def update_graph(table_name,
     ward_max_value = ldf[datacol].max()
     lad_max_value = lladdf[datacol].max()
 
-    if granularity == 'Local Authority':
+    if granularity == 'Local Authorities':
         fdf = lladdf
         gj = london_lads
         key = "properties.lad11cd"
@@ -388,7 +351,7 @@ def update_graph(table_name,
                       title_x=0.5,
                       width=1500, height=800)
     # fig = blank_fig()
-    return fig, category1label, category1values, category1style, category2label, category2values, category2style, category3label, category3values, category3style, category4label, category4values, category4style
+    return fig, category1label, category1values, category1style, category2label, category2values, category2style, category3label, category3values, category3style, category4label, category4values, category4style  # , tablenamestyle
 
 
 if __name__ == '__main__':
